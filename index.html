@@ -8,6 +8,202 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* ============================================================
+     Motion & micro-interaction layer — additive, sits on top of
+     styles.css. Safe to delete this whole <style> block if you
+     ever want to strip animations back out.
+  ============================================================ */
+
+  @media (prefers-reduced-motion: no-preference) {
+
+    /* --- Hero load-in: staggered fade/slide on first paint --- */
+    .hero .rec-row,
+    .hero .name,
+    .hero .role,
+    .hero .tagline,
+    .hero .hero-ctas,
+    .hero .aspect-tags,
+    .hero-photo {
+      opacity: 0;
+      transform: translateY(18px);
+      animation: heroIn .7s cubic-bezier(.16,1,.3,1) forwards;
+    }
+    .hero .rec-row     { animation-delay: .05s; }
+    .hero .name        { animation-delay: .12s; }
+    .hero .role        { animation-delay: .22s; }
+    .hero .tagline     { animation-delay: .30s; }
+    .hero .hero-ctas   { animation-delay: .38s; }
+    .hero .aspect-tags { animation-delay: .46s; }
+    .hero-photo        { animation-delay: .30s; transform: translateY(18px) scale(.97); }
+
+    @keyframes heroIn {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* --- Generic scroll reveal (applied via JS below) --- */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
+    }
+    .reveal.in-view { opacity: 1; transform: translateY(0); }
+
+    /* Staggered children inside a revealed group (cred row, stat row, toolkit, reel grid, etc.) */
+    .reveal-stagger > * {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1);
+    }
+    .reveal-stagger.in-view > * { opacity: 1; transform: translateY(0); }
+    .reveal-stagger.in-view > *:nth-child(1) { transition-delay: .00s; }
+    .reveal-stagger.in-view > *:nth-child(2) { transition-delay: .07s; }
+    .reveal-stagger.in-view > *:nth-child(3) { transition-delay: .14s; }
+    .reveal-stagger.in-view > *:nth-child(4) { transition-delay: .21s; }
+    .reveal-stagger.in-view > *:nth-child(5) { transition-delay: .28s; }
+    .reveal-stagger.in-view > *:nth-child(6) { transition-delay: .35s; }
+  }
+
+  /* --- Hover / interaction polish (kept on even for reduced-motion users,
+         these are short + subtle rather than large-motion) --- */
+
+  .navlinks a { position: relative; }
+  .navlinks a::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: -4px;
+    width: 100%; height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform .35s cubic-bezier(.16,1,.3,1);
+  }
+  .navlinks a:hover::after { transform: scaleX(1); transform-origin: left; }
+
+  .btn { transition: transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s ease; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(20,23,28,.14); }
+  .btn:active { transform: translateY(0); }
+
+  .badge { transition: transform .2s ease, box-shadow .2s ease; }
+  .badge:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 10px rgba(20,23,28,.10); }
+
+  .cred, .stat, .dash-stat {
+    transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s ease;
+  }
+  .cred:hover, .stat:hover, .dash-stat:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px rgba(20,23,28,.08);
+  }
+
+  .clip-toggle { transition: background-color .25s ease; }
+  .clip-toggle:hover { background-color: rgba(20,23,28,.03); }
+  .clip-chevron { display: inline-block; transition: transform .3s cubic-bezier(.16,1,.3,1); }
+  .clip.open .clip-chevron { transform: rotate(90deg); }
+  .clip-bar-fill { transition: width 1s cubic-bezier(.16,1,.3,1); }
+
+  /* Reel cards: lift + thumbnail zoom + accent underline sweep */
+  .reel {
+    position: relative;
+    overflow: hidden;
+    transition: transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s ease;
+  }
+  .reel:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(20,23,28,.12); }
+  .reel-thumb { overflow: hidden; }
+  .reel-thumb svg, .reel-thumb img { transition: transform .5s cubic-bezier(.16,1,.3,1); }
+  .reel:hover .reel-thumb svg, .reel:hover .reel-thumb img { transform: scale(1.06); }
+  .reel::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #E8306F, #C97F00, #0C8F86);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .4s cubic-bezier(.16,1,.3,1);
+  }
+  .reel:hover::after { transform: scaleX(1); }
+
+  /* Gallery folder tiles / items — subtle lift on hover */
+  .folder-tile, .gallery-item, .gallery-thumb {
+    transition: transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s ease;
+  }
+  .folder-tile:hover, .gallery-item:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(20,23,28,.10); }
+  .gallery-thumb:hover { transform: scale(1.08); }
+
+  /* Live pulse on the campaign dashboard indicator */
+  .dash-live { position: relative; }
+  .dash-live::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 4px;
+    animation: pulseDot 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .35; transform: scale(.7); }
+  }
+
+  /* Cursor-follow spotlight glow (hero viewfinder + work reel grid) */
+  .spotlight { position: relative; isolation: isolate; }
+  .spotlight::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), rgba(232,48,111,.08), transparent 70%);
+    opacity: 0;
+    transition: opacity .3s ease;
+    z-index: 0;
+  }
+  .spotlight:hover::before { opacity: 1; }
+  .spotlight > * { position: relative; z-index: 1; }
+
+  /* --- Campaign proof strip (dashboard) --- */
+  .dash-proof { margin-top: 18px; }
+  .proof-reel {
+    all: unset;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(20,23,28,.03);
+    border: 1px dashed var(--line, #DBDDD3);
+    cursor: pointer;
+  }
+  .proof-reel:hover { background: rgba(20,23,28,.06); }
+  .proof-reel-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 8px;
+    background: #14171C; color: #F5F6F1;
+    font-size: 15px;
+  }
+  .proof-reel-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .proof-reel-text strong {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13.5px;
+    color: var(--ink, #14171C);
+  }
+  .proof-reel-text em {
+    font-style: normal;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim, #5C6067);
+    letter-spacing: .2px;
+  }
+  .proof-reel-arrow {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-dim, #5C6067);
+    transition: transform .25s cubic-bezier(.16,1,.3,1);
+  }
+  .proof-reel:hover .proof-reel-arrow { transform: translateX(4px); }
+</style>
 </head>
 <body>
 
@@ -273,6 +469,20 @@
             <span class="badge">Meta Ads Manager</span>
           </div>
         </div>
+
+        <div class="dash-proof">
+          <button class="reel proof-reel"
+            data-title="Campaign Proof"
+            data-desc="Meta Ads Manager screenshots, lead conversations, and sales records behind the numbers above."
+            data-gallery="Ads Manager>PROOF_1.png|PROOF_2.png|PROOF_3.png|PROOF_4.png;;FEC Recuritment Leads>AT_1.png|AT_2.png|AT_3.png|AT_4.png|AT_5.png;;Farm Sales>MS_1.png|MS_2.png|MS_3.png|MS_4.png|MS_5.png">
+            <span class="proof-reel-icon">◧</span>
+            <span class="proof-reel-text">
+              <strong>View campaign proof</strong>
+              <em>Ads Manager · lead messages · sales records</em>
+            </span>
+            <span class="proof-reel-arrow">→</span>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -291,6 +501,15 @@
       <div class="tool-group">
         <h3>Marketing &amp; Ops</h3>
         <div class="badges"><span class="badge">Meta Ads</span><span class="badge">Buffer</span><span class="badge">GoHighLevel</span><span class="badge">Social Content Design</span></div>
+      </div>
+      <div class="tool-group">
+        <h3>Gear</h3>
+        <div class="badges">
+          <span class="badge">Huawei MateBook D15</span>
+          <span class="badge">Huawei Nova 14 Pro</span>
+          <span class="badge">DJI Mini 4</span>
+          <span class="badge">Nikon D3500</span>
+        </div>
       </div>
       <div class="tool-group">
         <h3>Languages</h3>
@@ -353,7 +572,7 @@
       data-title="Property & Drone Films"
       data-desc="Photography, drone footage, and promo videos for real estate and resort listings."
       data-tags="16:9, Drone, Real estate"
-      data-gallery="Fil-Estate Core>Property_1.mp4|Property_2.mp4|Property_ad.mp4;;Palaya Natural Farm>Resort_1.mp4|Resort_2.mp4|Resort_3.mp4">
+      data-gallery="Fil-Estate Core>Property_1.mp4|Property_2.mp4|Property_3.mp4|Property_ad.mp4;;Palaya Natural Farm>Resort_1.mp4|Resort_2.mp4|Resort_3.mp4">
      <div class="reel-thumb">
   <span class="reel-ratio">16:9</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -393,7 +612,7 @@
       data-title="Brand & Social Campaigns"
       data-desc="Poster sets and ad creative built for a ₱14-per-lead Meta Ads campaign."
       data-tags="1:1, Meta Ads, ₱14/lead"
-      data-gallery="Fil-Estate Core>FEC_1.jpg|FEC_2.jpg|FEC_3.jpg|FEC_4.jpg|FEC_5.jpg|FEC_6.jpg|FEC_7.jpg|FEC_8.jpg|FEC_9.jpg|FEC_11.jpg|FEC_12.jpg|FEC_13.mp4|FEC_14.mp4|FEC_15.mp4;;Girlfriend Collective>GF_1.mp4|GF_2.mp4|GF_3.mp4;;Leon Philippe Farms>LP_1.jpg|LP_2.jpg|LP_3.jpg|LP_4.jpg|LP_5.jpg|LP_6.jpg|LP_7.jpg|LP_8.jpg|LP_9.mp4|LP_10.mp4|LP_11.mp4|LP_12.mp4|;;The Weekends El Nido>PL_1.png;;Palaya Agriventures>PL_1.png|PL_2.png|PL_3.png|PL_4.png|PNF_1.png|PNF_2.png|PNF_3.png|SH_1.png|SH_2.png|SH_3.png|;;Luggage Master>LM_1.mp4|LM_2.mp4|LM_3.jpg|LM_4.jpg|LM_5.jpg|LM_6.mp4">
+      data-gallery="Fil-Estate Core>FEC_1.jpg|FEC_2.jpg|FEC_3.jpg|FEC_4.jpg|FEC_5.jpg|FEC_6.jpg|FEC_7.jpg|FEC_8.jpg|FEC_9.jpg|FEC_11.jpg|FEC_12.jpg|FEC_13.mp4|FEC_14.mp4|FEC_15.mp4;;Girlfriend Collective>GF_1.mp4|GF_2.mp4|GF_3.mp4;;Leon Philippe Farms>LP_1.jpg|LP_2.jpg|LP_3.jpg|LP_4.jpg|LP_5.jpg|LP_6.jpg|LP_7.jpg|LP_8.jpg|LP_9.mp4|LP_10.mp4|LP_11.mp4|LP_12.mp4|;;The Weekends El Nido>WK_1.mp4|WK_2.mp4|WK_3.mp4|WK_4.mp4|WK_5.mp4|WK_6.mp4|WK_7.mp4|WK_8.mp4|WK_9.mp4|WK_10.mp4|;;Palaya Agriventures>PL_1.png|PL_2.png|PL_3.png|PL_4.png|PNF_1.png|PNF_2.png|PNF_3.png|SH_1.png|SH_2.png|SH_3.png|;;Luggage Master>LM_1.mp4|LM_2.mp4|LM_3.jpg|LM_4.jpg|LM_5.jpg|LM_6.mp4">
       <div class="reel-thumb">
   <span class="reel-ratio">1:1</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -428,7 +647,7 @@
       data-title="Web & Product Design"
       data-desc="Site builds and UI/UX prototyping in Webflow and Figma, plus ongoing IT support."
       data-tags="Webflow, Figma, IT Support"
-      data-gallery="assets/work/web/01.jpg|assets/work/web/02.jpg|assets/work/web/03.jpg|assets/work/web/04.jpg|assets/work/web/05.jpg|assets/work/web/06.jpg">
+      data-gallery="Site &amp; UI Shots&gt;UI_1.png|UI_2.png|UI_3.png|UI_4.png|UI_5.png|UI_6.png|UI_7.png;;EHS&gt;https://www.figma.com/proto/XBWXHjKoJFyCKfhrKCkkcS/EHS?node-id=84-367&amp;starting-point-node-id=41%3A2&amp;t=DB77FnQTr2bURdW0-1;;HandyHanap&gt;https://www.figma.com/proto/m2lbFdmpoOSmVJE0mNADkz/HANDYHANAP?node-id=2233-3710&amp;starting-point-node-id=2233%3A3710&amp;t=lDMLMpUtUHGwFeLO-1;;Lampara&gt;https://www.figma.com/proto/0rqpnpzDcuj7oOJXgn2gnW/Lampara?node-id=82-3947&amp;starting-point-node-id=82%3A3947&amp;t=IXJCB5R3jqBYVcsC-1;;CookinGo&gt;https://www.figma.com/proto/nQfSrlqFMsq58CfIBKUq2L/CookinGo?node-id=9-12&amp;starting-point-node-id=9%3A12&amp;t=NMkITIKSf1jjOouR-1;;SinTambayan&gt;https://www.figma.com/proto/UaCJmdmQZdV64CZcX1G0Pn/SinTambayan?node-id=46-101&amp;p=f&amp;t=MoBS0nN8ks6yyA3T-1&amp;scaling=scale-down&amp;content-scaling=fixed&amp;page-id=27%3A236&amp;starting-point-node-id=45%3A97&amp;show-proto-sidebar=1;;Barterbayan&gt;https://www.figma.com/proto/g9rMMMC93pe4WKAFeNONhq/Barterbayan?node-id=27-35&amp;p=f&amp;t=E8ZTSgfLxYkt9IhC-1&amp;scaling=scale-down&amp;content-scaling=fixed&amp;page-id=19%3A2&amp;starting-point-node-id=27%3A35">
       <div class="reel-thumb">
   <span class="reel-ratio">WEB</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -1068,6 +1287,50 @@
         if (e.key === 'ArrowLeft') stepLightbox(-1);
       }
     });
+  })();
+
+
+  // ---- Scroll reveal + cursor spotlight (works alongside the .clip system above) ----
+  (function () {
+    // Groups that fade/slide in with a stagger across their direct children
+    const staggerSelectors = ['.cred-grid', '.stats-grid', '.toolkit', '.reel-grid', '.slate', '.cs-grid'];
+    staggerSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => el.classList.add('reveal-stagger'));
+    });
+
+    // Single blocks that fade/slide in as one unit
+    document.querySelectorAll('.contact-inner').forEach(el => el.classList.add('reveal'));
+
+    const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
+
+    if ('IntersectionObserver' in window && revealEls.length) {
+      const revealIo = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('in-view');
+            revealIo.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12 });
+
+      revealEls.forEach(el => revealIo.observe(el));
+    } else {
+      revealEls.forEach(el => el.classList.add('in-view'));
+    }
+
+    // Cursor-follow spotlight on the hero viewfinder and the work reel grid
+    const spotlightTargets = document.querySelectorAll('.viewfinder, .reel-grid');
+    spotlightTargets.forEach(el => el.classList.add('spotlight'));
+
+    if (!reduceMotion) {
+      spotlightTargets.forEach(el => {
+        el.addEventListener('pointermove', (e) => {
+          const rect = el.getBoundingClientRect();
+          el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+          el.style.setProperty('--my', `${e.clientY - rect.top}px`);
+        });
+      });
+    }
   })();
 </script>
 
