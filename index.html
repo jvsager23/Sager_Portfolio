@@ -313,7 +313,7 @@
       data-title="Short-Form Edits"
       data-desc="Trend-driven TikTok content edited for retention — including a single video that hit 1M+ likes."
       data-tags="9:16, TikTok, Retention edit"
-      data-gallery= "Tiktok_Shorts_1.mp4|Tiktok_Shorts_2.mp4|Tiktok_Shorts_3.mp4|Tiktok_Shorts_4.mp4|Tiktok_Shorts_5.mp4|Tiktok_Shorts_6.mp4|Tiktok_Shorts_7.mp4">
+      data-gallery="Trend Edits>Tiktok_Shorts_1.mp4|Tiktok_Shorts_2.mp4|Tiktok_Shorts_3.mp4;;Retention Edits>Tiktok_Shorts_4.mp4|Tiktok_Shorts_5.mp4|Tiktok_Shorts_6.mp4|Tiktok_Shorts_7.mp4">
       <div class="reel-thumb">
   <span class="reel-ratio">9:16</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -360,7 +360,7 @@
       data-title="Property & Drone Films"
       data-desc="Photography, drone footage, and promo videos for real estate and resort listings."
       data-tags="16:9, Drone, Real estate"
-      data-gallery="Property_1.mp4|Property_2.mp4">
+      data-gallery="Property>Property_1.mp4|Property_2.mp4|Property_ad.mp4;;Resort>Resort_1.mp4|Resort_2.mp4">
      <div class="reel-thumb">
   <span class="reel-ratio">16:9</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -400,7 +400,7 @@
       data-title="Brand & Social Campaigns"
       data-desc="Poster sets and ad creative built for a ₱14-per-lead Meta Ads campaign."
       data-tags="1:1, Meta Ads, ₱14/lead"
-      data-gallery="assets/work/brand/01.jpg|assets/work/brand/02.jpg|assets/work/brand/03.jpg|assets/work/brand/04.jpg|assets/work/brand/05.jpg|assets/work/brand/06.jpg">
+      data-gallery="Folder One>PL_1.png|PL_2.png|PL_3.png;;Folder Two>PNF_1.png|PNF_2.png|PNF_3.png;;Folder Three>SH_1.png|SH_2.png|SH_3.png">
       <div class="reel-thumb">
   <span class="reel-ratio">1:1</span>
   <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
@@ -670,7 +670,7 @@
   });
 
 
-  // Reel → Work Gallery
+  // Reel → Work Gallery (folder picker + carousel)
   (function () {
     const overlay = document.getElementById('workGallery');
     const grid = document.getElementById('galleryGrid');
@@ -681,27 +681,26 @@
     if (!overlay || !grid || !reels.length) return;
 
     let lastFocused = null;
+    let folders = [];
+    let activeFolder = null;
+    let galleryIndex = 0;
+    let baseTitle = '';
 
     const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'm4v'];
 
     function isVideoSrc(src) {
       const clean = src.split('?')[0].split('#')[0];
-      const ext = clean.split('.').pop().toLowerCase();
-      return VIDEO_EXTS.includes(ext);
+      return VIDEO_EXTS.includes(clean.split('.').pop().toLowerCase());
     }
-
     function isFigmaSrc(src) {
       return /figma\.com\/(file|proto|design|board)\//i.test(src);
     }
-
     function figmaEmbedUrl(src) {
       return `https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(src)}`;
     }
 
-    // A gallery entry like "1080p@video-hi.mp4^480p@video-lo.mp4" describes
-    // multiple quality variants of the same video, joined by "^", each as
-    // "label@path". An entry with no "@" is treated as a single-quality
-    // video with no selector. Returns an array of { label, src }.
+    // "1080p@video-hi.mp4^480p@video-lo.mp4" = multiple quality variants of
+    // one video, joined by "^", each as "label@path". No "@" = single quality.
     function parseVideoVariants(entry) {
       return entry.split('^').map(part => {
         const at = part.indexOf('@');
@@ -710,20 +709,35 @@
       }).filter(v => v.src);
     }
 
+    // ";;"-separated folders, each "Label>item|item|item".
+    // No ";;" present -> one unnamed folder holding everything (flat gallery).
+    function parseGallery(raw) {
+      const segments = raw.split(';;').map(s => s.trim()).filter(Boolean);
+
+      if (segments.length <= 1) {
+        const items = raw.split('|').map(s => s.trim()).filter(Boolean);
+        return items.length ? [{ name: null, items }] : [];
+      }
+
+      return segments.map(seg => {
+        const gt = seg.indexOf('>');
+        const name = gt === -1 ? 'Set' : seg.slice(0, gt).trim();
+        const rest = gt === -1 ? seg : seg.slice(gt + 1);
+        const items = rest.split('|').map(s => s.trim()).filter(Boolean);
+        return { name, items };
+      }).filter(f => f.items.length);
+    }
+
     function buildGallery(reel) {
-      grid.innerHTML = '';
+      baseTitle = reel.dataset.title || 'Selected work';
+      titleEl.textContent = baseTitle;
+      descEl.textContent = reel.dataset.desc || '';
 
-      const title = reel.dataset.title || 'Selected work';
-      const desc = reel.dataset.desc || '';
-      const images = (reel.dataset.gallery || '')
-        .split('|')
-        .map(s => s.trim())
-        .filter(Boolean);
+      folders = parseGallery(reel.dataset.gallery || '');
+      activeFolder = null;
+      galleryIndex = 0;
 
-      titleEl.textContent = title;
-      descEl.textContent = desc;
-
-      if (!images.length) {
+      if (!folders.length) {
         grid.innerHTML = `
           <div class="gallery-empty">
             <strong>No images yet</strong>
@@ -732,108 +746,185 @@
         return;
       }
 
-      images.forEach((entry, i) => {
-        const item = document.createElement('div');
-        item.className = 'gallery-item';
+      if (folders.length === 1 && folders[0].name === null) {
+        activeFolder = 0;
+        renderCarousel();
+      } else {
+        renderFolderGrid();
+      }
+    }
 
-        const hasVideoMarker = entry.includes('^') || isVideoSrc(entry.split('@').pop());
+    function folderThumb(folder) {
+      const first = folder.items[0];
+      const raw = first.split('^')[0].split('@').pop();
+      if (isFigmaSrc(first)) return `<span class="folder-icon">FIG</span>`;
+      if (first.includes('^') || isVideoSrc(raw)) return `<span class="folder-icon">▶</span>`;
+      return `<img src="${first}" alt="" loading="lazy">`;
+    }
 
-        if (isFigmaSrc(entry)) {
-          item.classList.add('gallery-item-embed');
-          item.innerHTML = `
-            <iframe src="${figmaEmbedUrl(entry)}" allowfullscreen loading="lazy"
-              title="${title} — Figma embed ${i + 1}"></iframe>
-            <span class="gallery-caption">${title} — ${String(i + 1).padStart(2, '0')}</span>
-          `;
-        } else if (hasVideoMarker) {
-          item.classList.add('gallery-item-video');
+    function renderFolderGrid() {
+      titleEl.textContent = baseTitle;
 
-          const variants = parseVideoVariants(entry);
-          const defaultVariant = variants[0];
+      grid.innerHTML = `
+        <div class="folder-grid">
+          ${folders.map((f, i) => `
+            <button class="folder-tile" data-folder-index="${i}">
+              <span class="folder-thumb">${folderThumb(f)}</span>
+              <span class="folder-name">${f.name}</span>
+              <span class="folder-count">${f.items.length} ${f.items.length === 1 ? 'item' : 'items'}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
 
-          const wrap = document.createElement('div');
-          wrap.className = 'video-wrap';
+      grid.querySelectorAll('.folder-tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          activeFolder = parseInt(tile.dataset.folderIndex, 10);
+          galleryIndex = 0;
+          renderCarousel();
+        });
+      });
+    }
 
-          const video = document.createElement('video');
-          video.src = defaultVariant.src;
-          video.playsInline = true;
-          video.muted = true;
-          video.loop = true;
-          video.controls = true;
-          video.autoplay = true;
-          video.preload = 'auto';
-          video.dataset.currentLabel = defaultVariant.label || '';
+    function renderCarousel() {
+      const folder = folders[activeFolder];
+      const showBack = folders.length > 1;
 
-          wrap.appendChild(video);
+      titleEl.textContent = folder.name ? `${baseTitle} — ${folder.name}` : baseTitle;
 
-          // Only show a quality selector when there's more than one variant
-          if (variants.length > 1) {
-            const qualityBtn = document.createElement('button');
-            qualityBtn.type = 'button';
-            qualityBtn.className = 'quality-btn';
-            qualityBtn.textContent = defaultVariant.label || 'Quality';
+      grid.innerHTML = `
+        ${showBack ? `<button class="folder-back">‹ All sets</button>` : ''}
+        <div class="gallery-carousel">
+          <button class="gallery-nav gallery-prev" aria-label="Previous">‹</button>
+          <div class="gallery-stage" id="galleryStage"></div>
+          <button class="gallery-nav gallery-next" aria-label="Next">›</button>
+          <div class="gallery-counter" id="galleryCounter"></div>
+        </div>
+        <div class="gallery-thumbs" id="galleryThumbs"></div>
+      `;
 
-            const menu = document.createElement('div');
-            menu.className = 'quality-menu';
+      if (showBack) {
+        grid.querySelector('.folder-back').addEventListener('click', () => {
+          activeFolder = null;
+          renderFolderGrid();
+        });
+      }
 
-            variants.forEach(v => {
-              const opt = document.createElement('button');
-              opt.type = 'button';
-              opt.className = 'quality-option';
-              opt.textContent = v.label || v.src;
-              if (v.src === video.src.split('/').pop() || v === defaultVariant) {
-                opt.classList.add('active');
-              }
+      grid.querySelector('.gallery-prev').addEventListener('click', () => stepGallery(-1));
+      grid.querySelector('.gallery-next').addEventListener('click', () => stepGallery(1));
 
-              opt.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (video.dataset.currentLabel === v.label) {
-                  menu.classList.remove('open');
-                  return;
-                }
+      buildThumbs();
+      renderSlide();
+    }
 
-                const wasPlaying = !video.paused;
-                const time = video.currentTime;
+    function buildThumbs() {
+      const items = folders[activeFolder].items;
+      const thumbs = document.getElementById('galleryThumbs');
+      thumbs.innerHTML = '';
 
-                video.src = v.src;
-                video.currentTime = time;
-                video.dataset.currentLabel = v.label || '';
-                if (wasPlaying) video.play().catch(() => {});
+      items.forEach((entry, i) => {
+        const raw = entry.split('^')[0].split('@').pop();
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gallery-thumb';
+        btn.setAttribute('aria-label', `Item ${i + 1}`);
 
-                qualityBtn.textContent = v.label || 'Quality';
-                menu.querySelectorAll('.quality-option').forEach(o =>
-                  o.classList.toggle('active', o === opt)
-                );
-                menu.classList.remove('open');
-              });
+        if (isFigmaSrc(entry)) btn.textContent = 'FIG';
+        else if (entry.includes('^') || isVideoSrc(raw)) btn.innerHTML = `<span class="thumb-play">▶</span>`;
+        else btn.innerHTML = `<img src="${entry}" alt="" loading="lazy">`;
 
-              menu.appendChild(opt);
-            });
+        btn.addEventListener('click', () => { galleryIndex = i; renderSlide(); });
+        thumbs.appendChild(btn);
+      });
+    }
 
-            qualityBtn.addEventListener('click', (e) => {
+    function renderSlide() {
+      const items = folders[activeFolder].items;
+      const stage = document.getElementById('galleryStage');
+      const counter = document.getElementById('galleryCounter');
+      const entry = items[galleryIndex];
+
+      stage.innerHTML = '';
+      counter.textContent = `${galleryIndex + 1} / ${items.length}`;
+
+      document.querySelectorAll('.gallery-thumb').forEach((t, i) => t.classList.toggle('active', i === galleryIndex));
+
+      if (isFigmaSrc(entry)) {
+        stage.innerHTML = `<iframe src="${figmaEmbedUrl(entry)}" allowfullscreen loading="lazy" title="Figma embed"></iframe>`;
+        return;
+      }
+
+      const hasVideoMarker = entry.includes('^') || isVideoSrc(entry.split('@').pop());
+
+      if (hasVideoMarker) {
+        const variants = parseVideoVariants(entry);
+        const defaultVariant = variants[0];
+
+        const wrap = document.createElement('div');
+        wrap.className = 'video-wrap';
+
+        const video = document.createElement('video');
+        video.src = defaultVariant.src;
+        video.playsInline = true;
+        video.muted = true;
+        video.loop = true;
+        video.controls = true;
+        video.autoplay = true;
+        video.preload = 'auto';
+        video.dataset.currentLabel = defaultVariant.label || '';
+        wrap.appendChild(video);
+
+        if (variants.length > 1) {
+          const qualityBtn = document.createElement('button');
+          qualityBtn.type = 'button';
+          qualityBtn.className = 'quality-btn';
+          qualityBtn.textContent = defaultVariant.label || 'Quality';
+
+          const menu = document.createElement('div');
+          menu.className = 'quality-menu';
+
+          variants.forEach(v => {
+            const opt = document.createElement('button');
+            opt.type = 'button';
+            opt.className = 'quality-option';
+            opt.textContent = v.label || v.src;
+            if (v === defaultVariant) opt.classList.add('active');
+
+            opt.addEventListener('click', (e) => {
               e.stopPropagation();
-              menu.classList.toggle('open');
+              if (video.dataset.currentLabel === v.label) { menu.classList.remove('open'); return; }
+              const wasPlaying = !video.paused;
+              const time = video.currentTime;
+              video.src = v.src;
+              video.currentTime = time;
+              video.dataset.currentLabel = v.label || '';
+              if (wasPlaying) video.play().catch(() => {});
+              qualityBtn.textContent = v.label || 'Quality';
+              menu.querySelectorAll('.quality-option').forEach(o => o.classList.toggle('active', o === opt));
+              menu.classList.remove('open');
             });
 
-            wrap.appendChild(qualityBtn);
-            wrap.appendChild(menu);
-          }
+            menu.appendChild(opt);
+          });
 
-          item.appendChild(wrap);
-
-          const caption = document.createElement('span');
-          caption.className = 'gallery-caption';
-          caption.textContent = `${title} — ${String(i + 1).padStart(2, '0')}`;
-          item.appendChild(caption);
-        } else {
-          item.innerHTML = `
-            <img src="${entry}" alt="${title} — image ${i + 1}" loading="lazy">
-            <span class="gallery-caption">${title} — ${String(i + 1).padStart(2, '0')}</span>
-          `;
+          qualityBtn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); });
+          wrap.appendChild(qualityBtn);
+          wrap.appendChild(menu);
         }
 
-        grid.appendChild(item);
-      });
+        stage.appendChild(wrap);
+      } else {
+        stage.innerHTML = `<img src="${entry}" alt="Item ${galleryIndex + 1}" loading="lazy">`;
+      }
+    }
+
+    function stepGallery(dir) {
+      if (activeFolder === null) return;
+      const items = folders[activeFolder].items;
+      if (!items.length) return;
+      galleryIndex = (galleryIndex + dir + items.length) % items.length;
+      document.querySelectorAll('.gallery-stage video').forEach(v => v.pause());
+      renderSlide();
     }
 
     function openGallery(reel) {
@@ -874,8 +965,11 @@
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('open')) {
-        closeGallery();
+      if (!overlay.classList.contains('open')) return;
+      if (e.key === 'Escape') closeGallery();
+      if (activeFolder !== null) {
+        if (e.key === 'ArrowRight') stepGallery(1);
+        if (e.key === 'ArrowLeft') stepGallery(-1);
       }
     });
   })();
