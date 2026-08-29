@@ -518,4 +518,104 @@
     .work-gallery,.work-gallery-modal,.folder-tile,.gallery-nav,.gallery-thumb,.work-gallery-close{transition:none;}
   }
 
-  
+  /* ============================================================
+     LOADING SCREEN — clapperboard slate that "claps" shut to
+     reveal the site. Fully self-contained; safe to delete this
+     whole section (and the #siteLoader markup + its script in
+     index.html) if you ever want to remove it.
+  ============================================================ */
+
+  html.has-loader, html.has-loader body{ overflow:hidden; }
+  html.has-loader.loader-done, html.has-loader.loader-done body{ overflow:auto; }
+
+  .loader{
+    position:fixed;inset:0;z-index:9999;
+    background:var(--ink);color:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    padding:1.5rem;
+    transition:opacity .55s cubic-bezier(.16,1,.3,1), visibility .55s;
+  }
+  .loader.loader-hide{opacity:0;visibility:hidden;pointer-events:none;}
+
+  /* faint film-grain vignette so the dark panel doesn't feel flat */
+  .loader::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 0%, rgba(245,246,241,.06), transparent 60%);
+  }
+
+  .loader-inner{
+    position:relative;z-index:1;
+    width:min(400px,100%);
+    display:flex;flex-direction:column;gap:1.3rem;
+  }
+
+  .loader-topline{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(245,246,241,.5);
+  }
+  .loader-topline .rec{color:var(--magenta);}
+  .loader-topline .rec .reddot{background:var(--magenta);}
+
+  .loader-board{
+    position:relative;
+    border:1px solid rgba(245,246,241,.22);
+    border-radius:6px;
+    background:rgba(245,246,241,.03);
+    overflow:hidden;
+  }
+  .loader-clap{
+    height:30px;
+    background:repeating-linear-gradient(-45deg, var(--bg) 0 16px, var(--ink) 16px 32px);
+    border-bottom:2px solid var(--bg);
+    transform-origin:right center;
+    transition:transform .48s cubic-bezier(.65,0,.35,1);
+  }
+  .loader.clapped .loader-clap{ transform:rotate(-16deg) translateY(-1px); }
+
+  .loader-rows{padding:1rem 1.1rem 1.15rem;}
+  .loader-row{
+    display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:.78rem;letter-spacing:.04em;
+    padding:.4rem 0;border-bottom:1px dashed rgba(245,246,241,.16);
+  }
+  .loader-row:last-child{border-bottom:none;}
+  .loader-row span:first-child{color:rgba(245,246,241,.45);}
+  .loader-row span:last-child{color:var(--bg);font-weight:600;}
+
+  .loader-progress-track{
+    height:4px;border-radius:2px;overflow:hidden;
+    background:rgba(245,246,241,.14);
+  }
+  .loader-progress-fill{
+    height:100%;width:0%;border-radius:2px;
+    background:linear-gradient(90deg, var(--teal), var(--magenta), var(--amber));
+  }
+  .loader-progress-meta{
+    display:flex;justify-content:space-between;margin-top:.5rem;
+    font-family:var(--mono);font-size:.7rem;color:rgba(245,246,241,.55);
+  }
+  #loaderPercent{color:var(--bg);font-weight:600;}
+
+  .loader-status{
+    text-align:center;
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+    color:rgba(245,246,241,.6);
+    min-height:1em;
+  }
+  .loader.clapped .loader-status{ color:var(--magenta); font-weight:600; }
+
+  .loader-strip{
+    height:12px;opacity:.3;
+    background-image:radial-gradient(circle, var(--bg) 2.5px, transparent 3px);
+    background-size:20px 12px;background-position:0 center;background-repeat:repeat-x;
+  }
+
+  @media (max-width:480px){
+    .loader-inner{gap:1rem;}
+    .loader-rows{padding:.85rem .95rem 1rem;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .loader, .loader-clap{transition:none;}
+  }

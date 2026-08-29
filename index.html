@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="has-loader">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>John Vincent Sager — Multimedia Designer & Content Creator</title>
+<link rel="icon" type="image/png" href="JV_PIC.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -207,6 +208,40 @@
 </head>
 <body>
 
+<!-- ==================== LOADING SCREEN ==================== -->
+<div class="loader" id="siteLoader" role="status" aria-live="polite">
+  <div class="loader-inner">
+    <div class="loader-topline">
+      <span>JVS / REEL — PRODUCTION</span>
+      <span class="rec"><span class="reddot"></span>REC</span>
+    </div>
+
+    <div class="loader-strip"></div>
+
+    <div class="loader-board">
+      <div class="loader-clap" id="loaderClap"></div>
+      <div class="loader-rows">
+        <div class="loader-row"><span>SCENE</span><span>01</span></div>
+        <div class="loader-row"><span>TAKE</span><span id="loaderTake">01</span></div>
+        <div class="loader-row"><span>DIR.</span><span>J. SAGER</span></div>
+      </div>
+    </div>
+
+    <div class="loader-strip"></div>
+
+    <div>
+      <div class="loader-progress-track"><div class="loader-progress-fill" id="loaderFill"></div></div>
+      <div class="loader-progress-meta">
+        <span id="loaderPercent">00%</span>
+        <span id="loaderTc">00:00:00:00</span>
+      </div>
+    </div>
+
+    <div class="loader-status" id="loaderStatus">ROLLING CAMERA…</div>
+  </div>
+</div>
+<!-- ================== /LOADING SCREEN ==================== -->
+
 <header>
   <nav class="wrap">
     <div class="logo"><span class="dot"></span>JVS / REEL</div>
@@ -259,7 +294,7 @@
               <span class="monitor-tag">● ON CAM</span>
               <span class="monitor-ratio">4:5</span>
               <img src="JV_PIC.png" alt="Portrait of John Vincent Sager, smiling, wearing a white polo shirt" />
-              <div class="monitor-caption">JVSAGER — TAKE 01 — MNL</div>
+              <div class="monitor-caption">JVSAGER — 22YRS— TAKE 01 — MNL</div>
             </div>
           </div>
         </div>
@@ -1331,6 +1366,105 @@
         });
       });
     }
+  })();
+
+
+  // ---- Clapperboard loading screen ----
+  (function () {
+    const loader = document.getElementById('siteLoader');
+    if (!loader) return;
+
+    const fillEl    = document.getElementById('loaderFill');
+    const percentEl = document.getElementById('loaderPercent');
+    const tcEl      = document.getElementById('loaderTc');
+    const statusEl  = document.getElementById('loaderStatus');
+    const takeEl    = document.getElementById('loaderTake');
+
+    const reduceLoaderMotion =
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const statuses = [
+      'ROLLING CAMERA…',
+      'LOADING REEL…',
+      'FOCUSING LENS…',
+      'CHECKING GATE…',
+      'SYNCING AUDIO…'
+    ];
+    let statusIndex = 0;
+    let take = 1;
+
+    const statusInterval = setInterval(() => {
+      statusIndex = (statusIndex + 1) % statuses.length;
+      if (statusEl) statusEl.textContent = statuses[statusIndex];
+      take++;
+      if (takeEl) takeEl.textContent = String(take).padStart(2, '0');
+    }, reduceLoaderMotion ? 100000 : 650);
+
+    const minDuration = reduceLoaderMotion ? 200 : 1500; // ms — keeps the loader from just flashing
+    const start = performance.now();
+    let shownProgress = 0;
+    let readyToFinish = false;
+    let finished = false;
+
+    function updateDisplay(pct) {
+      const shown = Math.min(100, Math.max(0, Math.round(pct)));
+      if (fillEl) fillEl.style.width = shown + '%';
+      if (percentEl) percentEl.textContent = String(shown).padStart(2, '0') + '%';
+
+      const totalFrames = Math.round((shown / 100) * (24 * 3)); // pretend "3 second" reel
+      const secs = Math.floor(totalFrames / 24);
+      const frames = totalFrames % 24;
+      if (tcEl) {
+        tcEl.textContent =
+          '00:00:' + String(secs).padStart(2, '0') + ':' + String(frames).padStart(2, '0');
+      }
+    }
+
+    function step(now) {
+      const elapsed = now - start;
+      const target = readyToFinish ? 100 : Math.min(92, (elapsed / minDuration) * 92);
+
+      shownProgress += (target - shownProgress) * 0.12;
+      if (Math.abs(target - shownProgress) < 0.4) shownProgress = target;
+
+      updateDisplay(shownProgress);
+
+      if (shownProgress >= 99.5 && readyToFinish) {
+        updateDisplay(100);
+        finish();
+        return;
+      }
+      requestAnimationFrame(step);
+    }
+
+    function finish() {
+      if (finished) return;
+      finished = true;
+      clearInterval(statusInterval);
+      if (statusEl) statusEl.textContent = 'ACTION!';
+      loader.classList.add('clapped');
+
+      const clapDelay = reduceLoaderMotion ? 0 : 480;
+      setTimeout(() => {
+        loader.classList.add('loader-hide');
+        document.documentElement.classList.add('loader-done');
+      }, clapDelay);
+
+      setTimeout(() => {
+        loader.remove();
+      }, clapDelay + 700);
+    }
+
+    requestAnimationFrame(step);
+
+    window.addEventListener('load', () => {
+      const elapsed = performance.now() - start;
+      const wait = Math.max(0, minDuration - elapsed);
+      setTimeout(() => { readyToFinish = true; }, wait);
+    });
+
+    // Safety net in case the load event is unusually slow or never fires cleanly
+    setTimeout(() => { readyToFinish = true; }, 6000);
   })();
 </script>
 
