@@ -682,6 +682,34 @@
 
     let lastFocused = null;
 
+    const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'm4v'];
+
+    function isVideoSrc(src) {
+      const clean = src.split('?')[0].split('#')[0];
+      const ext = clean.split('.').pop().toLowerCase();
+      return VIDEO_EXTS.includes(ext);
+    }
+
+    function isFigmaSrc(src) {
+      return /figma\.com\/(file|proto|design|board)\//i.test(src);
+    }
+
+    function figmaEmbedUrl(src) {
+      return `https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(src)}`;
+    }
+
+    // A gallery entry like "1080p@video-hi.mp4^480p@video-lo.mp4" describes
+    // multiple quality variants of the same video, joined by "^", each as
+    // "label@path". An entry with no "@" is treated as a single-quality
+    // video with no selector. Returns an array of { label, src }.
+    function parseVideoVariants(entry) {
+      return entry.split('^').map(part => {
+        const at = part.indexOf('@');
+        if (at === -1) return { label: null, src: part.trim() };
+        return { label: part.slice(0, at).trim(), src: part.slice(at + 1).trim() };
+      }).filter(v => v.src);
+    }
+
     function buildGallery(reel) {
       grid.innerHTML = '';
 
@@ -704,13 +732,106 @@
         return;
       }
 
-      images.forEach((src, i) => {
+      images.forEach((entry, i) => {
         const item = document.createElement('div');
         item.className = 'gallery-item';
-        item.innerHTML = `
-          <img src="${src}" alt="${title} — image ${i + 1}" loading="lazy">
-          <span class="gallery-caption">${title} — ${String(i + 1).padStart(2, '0')}</span>
-        `;
+
+        const hasVideoMarker = entry.includes('^') || isVideoSrc(entry.split('@').pop());
+
+        if (isFigmaSrc(entry)) {
+          item.classList.add('gallery-item-embed');
+          item.innerHTML = `
+            <iframe src="${figmaEmbedUrl(entry)}" allowfullscreen loading="lazy"
+              title="${title} — Figma embed ${i + 1}"></iframe>
+            <span class="gallery-caption">${title} — ${String(i + 1).padStart(2, '0')}</span>
+          `;
+        } else if (hasVideoMarker) {
+          item.classList.add('gallery-item-video');
+
+          const variants = parseVideoVariants(entry);
+          const defaultVariant = variants[0];
+
+          const wrap = document.createElement('div');
+          wrap.className = 'video-wrap';
+
+          const video = document.createElement('video');
+          video.src = defaultVariant.src;
+          video.playsInline = true;
+          video.muted = true;
+          video.loop = true;
+          video.controls = true;
+          video.autoplay = true;
+          video.preload = 'auto';
+          video.dataset.currentLabel = defaultVariant.label || '';
+
+          wrap.appendChild(video);
+
+          // Only show a quality selector when there's more than one variant
+          if (variants.length > 1) {
+            const qualityBtn = document.createElement('button');
+            qualityBtn.type = 'button';
+            qualityBtn.className = 'quality-btn';
+            qualityBtn.textContent = defaultVariant.label || 'Quality';
+
+            const menu = document.createElement('div');
+            menu.className = 'quality-menu';
+
+            variants.forEach(v => {
+              const opt = document.createElement('button');
+              opt.type = 'button';
+              opt.className = 'quality-option';
+              opt.textContent = v.label || v.src;
+              if (v.src === video.src.split('/').pop() || v === defaultVariant) {
+                opt.classList.add('active');
+              }
+
+              opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (video.dataset.currentLabel === v.label) {
+                  menu.classList.remove('open');
+                  return;
+                }
+
+                const wasPlaying = !video.paused;
+                const time = video.currentTime;
+
+                video.src = v.src;
+                video.currentTime = time;
+                video.dataset.currentLabel = v.label || '';
+                if (wasPlaying) video.play().catch(() => {});
+
+                qualityBtn.textContent = v.label || 'Quality';
+                menu.querySelectorAll('.quality-option').forEach(o =>
+                  o.classList.toggle('active', o === opt)
+                );
+                menu.classList.remove('open');
+              });
+
+              menu.appendChild(opt);
+            });
+
+            qualityBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              menu.classList.toggle('open');
+            });
+
+            wrap.appendChild(qualityBtn);
+            wrap.appendChild(menu);
+          }
+
+          item.appendChild(wrap);
+
+          const caption = document.createElement('span');
+          caption.className = 'gallery-caption';
+          caption.textContent = `${title} — ${String(i + 1).padStart(2, '0')}`;
+          item.appendChild(caption);
+        } else {
+          item.innerHTML = `
+            <img src="${entry}" alt="${title} — image ${i + 1}" loading="lazy">
+            <span class="gallery-caption">${title} — ${String(i + 1).padStart(2, '0')}</span>
+          `;
+        }
+
         grid.appendChild(item);
       });
     }
@@ -731,6 +852,8 @@
       overlay.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
 
+      overlay.querySelectorAll('video').forEach(v => v.pause());
+
       if (lastFocused && typeof lastFocused.focus === 'function') {
         lastFocused.focus();
       }
@@ -744,6 +867,10 @@
 
     overlay.addEventListener('click', e => {
       if (e.target === overlay) closeGallery();
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.quality-menu.open').forEach(m => m.classList.remove('open'));
     });
 
     document.addEventListener('keydown', e => {
